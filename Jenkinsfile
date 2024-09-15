@@ -8,7 +8,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/Raefml/helloRaef.git'
+        git credentialsId: 'github-Credentials', url: 'https://github.com/Raefml/helloRaef.git'
             }
         }
         stage('Build') {
