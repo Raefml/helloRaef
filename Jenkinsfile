@@ -27,13 +27,6 @@ pipeline {
                 }
             }
         }
-        stage('Deploy') {
-            steps {
-                script {
-                    // Déployer l'application sur AKS avec Helm
-                    sh "helm upgrade --install ${IMAGE_NAME} ./my-chart --set image.repository=${REGISTRY}/${IMAGE_NAME} --set image.tag=${env.BUILD_ID}"
-                }
-            }
-        }
+     
     }
 }
