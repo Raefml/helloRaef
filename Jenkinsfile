@@ -4,6 +4,10 @@ pipeline {
         REGISTRY = 'docker.io/raefml'
         IMAGE_NAME = 'helloraef'
         DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'
+        DOCKER_TAG = "latest"
+        HELM_RELEASE = "my-release"
+        HELM_CHART = "my_chart"
+        HELM_NAMESPACE = "default"
     }
     stages {
         stage('Checkout') {
@@ -16,17 +20,48 @@ pipeline {
                 sh 'mvn clean package'
             }
         }
-     stage('Docker Build and Push') {
-               steps {
-                   script {
-                       sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${env.BUILD_ID} ."
-                       withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_HUB_USERNAME', passwordVariable: 'DOCKER_HUB_PASSWORD')]) {
-                           sh "echo '${DOCKER_HUB_PASSWORD}' | docker login -u '${DOCKER_HUB_USERNAME}' --password-stdin"
-                       }
-                       sh "docker push ${REGISTRY}/${IMAGE_NAME}:${env.BUILD_ID}"
-                   }
-               }
-           }
-     
-    }
-}
+    stages {
+            stage('Build Docker Image') {
+                steps {
+                    script {
+
+                        docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                    }
+                }
+            }
+
+            stage('Push Docker Image') {
+                steps {
+                    script {
+
+                        docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-credentials') {
+
+                            docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push("${DOCKER_TAG}")
+                        }
+                    }
+                }
+            }
+
+             stage('Deploy to k8s') {
+                        steps {
+                            script {
+
+                                sh 'helm version'
+
+                                sh 'helm repo update'
+
+                                sh "helm upgrade --install ${HELM_RELEASE} ${HELM_CHART} --namespace ${HELM_NAMESPACE} --set image.repository=${DOCKER_IMAGE},image.tag=${DOCKER_TAG}"
+
+                                sh "helm status ${HELM_RELEASE} --namespace ${HELM_NAMESPACE}"
+                            }
+                        }
+                    }
+                }
+
+                post {
+                    always {
+
+                        echo 'Pipeline completed.'
+                    }
+                }
+            }
